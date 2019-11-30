@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         工数入力サポート
 // @namespace    https://userscripts.ai2-jp.com/
-// @version      0.1
+// @version      0.2
 // @description  ジョブカン勤怠管理の工数管理画面で、簡単入力の時間を比率とした実働時間を均等配分や選択値の記憶をします
 // @author       Yasunori Fujie
 // @match        https://ssl.jobcan.jp/employee/man-hour-manage
@@ -49,9 +49,54 @@ function manHourManagePage(window, $) {
     'use strict';
 
     let targetTime = 0;
+    const manHourManageCurrentPageKey = "com.ai2-jp.userscript.jobcan.man-hour-template-edit.currentPage";
+
+    // {
+    //     const currentDate = () => {
+    //         const year = $("[name=year]").val();
+    //         const month = $("[name=month]").val();
+    //         return {
+    //             year: year,
+    //             month: month,
+    //         }
+    //     }
+    //
+    //     const updateCurrentPage = () => {
+    //         const current = currentDate();
+    //         window.localStorage.setItem(manHourManageCurrentPageKey, JSON.stringify(current));
+    //     };
+    //
+    //     const getSavedCurrentPage = () => {
+    //         const s = window.localStorage.getItem(manHourManageCurrentPageKey);
+    //         if (s != null) {
+    //             return JSON.parse(s);
+    //         }
+    //     }
+    //
+    //     // 表示月度の保存
+    //     const searchElem = document.getElementById("search");
+    //     const orig = searchElem.submit;
+    //     searchElem.submit = () => {
+    //         updateCurrentPage();
+    //         return orig.call(searchElem);
+    //     };
+    //
+    //     // 表示月度の調整
+    //     const current = getSavedCurrentPage();
+    //     if (current != null) {
+    //         const now = currentDate();
+    //         if (now.year != current.year || now.month != current.month) {
+    //             $(searchElem).find("[name=year]").val(current.year);
+    //             $(searchElem).find("[name=month]").val(current.month);
+    //             $(searchElem).submit();
+    //         }
+    //     }
+    // }
+
     const lastTemplateKey = "com.ai2-jp.userscript.jobcan.man-hour-manage.last-template_id";
     const templateSelector = "#select-template select";
     const contentsSelector = "#edit-menu-contents tr.daily";
+    const saveFrameName = "save-frame"
     const storage = new TemplateOptionStorage();
 
     const templateID = (newID) => {
@@ -64,6 +109,12 @@ function manHourManagePage(window, $) {
             return elem.val();
         }
     };
+
+    // 保存先ページの変更
+    {
+        const frame = $("<iframe>").attr("id", saveFrameName).attr("name", saveFrameName);
+        frame.appendTo("body");
+    }
 
     {
         //　最後に選択したテンプレートを設定する
@@ -80,9 +131,25 @@ function manHourManagePage(window, $) {
                     }
                 }
             }
+
+            // フォームのターゲットをiframeに変更
+            $("#save-form").attr("target", saveFrameName);
+
+            $("#save").on("click", () => {
+                const frame = $("#save-frame");
+                let timerID;
+                timerID = setInterval(() => {
+                    const state = frame.contents()[0].readyState;
+                    if (state != "complete") {
+                        frame.remove();
+                        location.reload();
+                        clearInterval(timerID);
+                    }
+                }, 30);
+            });
+
             return ret;
         };
-
     }
     {
         //　テンプレートの時間と稼働時間に合わせ時間を配分する
