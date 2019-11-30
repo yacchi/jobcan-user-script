@@ -56,8 +56,8 @@ function manHourManagePage(window, $) {
 
     const templateID = (newID) => {
         const elem = $('#select-template select');
-        if (elem.length === 0) return
-        if (newID != undefined) {
+        if (elem.length === 0) return;
+        if (newID != null) {
             elem.val(newID);
             elem.trigger("change");
         } else {
@@ -75,7 +75,7 @@ function manHourManagePage(window, $) {
             if ($(contentsSelector).length < 1) {
                 const lastTemplate = localStorage.getItem(lastTemplateKey);
                 if (lastTemplate) {
-                    if ($(templateSelector + " option[value=" + lastTemplate + "]").length != 0) {
+                    if ($(templateSelector + " option[value=" + lastTemplate + "]").length !== 0) {
                         templateID(lastTemplate);
                     }
                 }
@@ -88,16 +88,13 @@ function manHourManagePage(window, $) {
         //　テンプレートの時間と稼働時間に合わせ時間を配分する
         const original = window.setTemplate;
 
-        const setTemplate = (json) => {
+        window.setTemplate = (json) => {
             const currentTemplateID = templateID();
             const optionConfig = storage.get(currentTemplateID);
 
             const fixedTimeFilter = (k) => {
                 const itemConf = optionConfig.items[k - 1];
-                if (!itemConf || !itemConf.fixedTime) {
-                    return true
-                }
-                return false
+                return !itemConf || !itemConf.fixedTime;
             };
 
             const templateTotal = Object.keys(json).filter(fixedTimeFilter).map(k => json[k]).reduce((now, v) => {
@@ -129,8 +126,6 @@ function manHourManagePage(window, $) {
 
             return original(json);
         };
-
-        window.setTemplate = setTemplate;
     }
 
     // 工数に:を補完する
@@ -232,7 +227,7 @@ function manHourTemplateEdit(window, $) {
 
         // ローカルストレージに保存
         $("#edit-menu").submit(() => {
-            const items = config.items = [];
+            const items = [];
 
             targetTable.each((idx, tr) => {
                 tr = $(tr);
@@ -244,6 +239,7 @@ function manHourTemplateEdit(window, $) {
                 }
             });
 
+            config.items = items;
             storage.set(templateID, config);
 
             return true;
@@ -255,7 +251,7 @@ function manHourTemplateEdit(window, $) {
 
 (function (window, $) {
     'use strict';
-    var url = window.location.href;
+    const url = window.location.href;
 
     if (url.indexOf("https://ssl.jobcan.jp/employee/man-hour-manage") === 0) {
         manHourManagePage(window, $);
