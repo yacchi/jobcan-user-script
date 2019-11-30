@@ -13,25 +13,29 @@ class TemplateOptionStorage {
     getKey(templateID) {
         return "com.ai2-jp.userscript.jobcan.man-hour-template-edit.optionConfig[" + templateID + "]"
     }
+
     exist(templateID) {
         const config = window.localStorage.getItem(this.getKey(templateID));
         return config != null;
     }
+
     get(templateID) {
         const config = window.localStorage.getItem(this.getKey(templateID));
         if (config) {
             try {
                 return JSON.parse(config);
-            } catch(e) {
+            } catch (e) {
             }
         }
         return {
             items: [],
         };
     }
+
     set(templateID, config) {
         window.localStorage.setItem(this.getKey(templateID), JSON.stringify(config));
     }
+
     replaceLatest(templateID) {
         const config = this.get("0");
         if (!this.exist(templateID)) {
@@ -89,20 +93,24 @@ function manHourManagePage(window, $) {
             const optionConfig = storage.get(currentTemplateID);
 
             const fixedTimeFilter = (k) => {
-                const itemConf = optionConfig.items[k-1];
+                const itemConf = optionConfig.items[k - 1];
                 if (!itemConf || !itemConf.fixedTime) {
                     return true
                 }
                 return false
             };
 
-            const templateTotal = Object.keys(json).filter(fixedTimeFilter).map(k => json[k]).reduce((now, v) => {return parseInt(v.minutes, 10) + now}, 0);
-            const fixedTotal = Object.keys(json).filter(k => !fixedTimeFilter(k)).map(k => json[k]).reduce((now, v) => {return parseInt(v.minutes, 10) + now}, 0);
+            const templateTotal = Object.keys(json).filter(fixedTimeFilter).map(k => json[k]).reduce((now, v) => {
+                return parseInt(v.minutes, 10) + now
+            }, 0);
+            const fixedTotal = Object.keys(json).filter(k => !fixedTimeFilter(k)).map(k => json[k]).reduce((now, v) => {
+                return parseInt(v.minutes, 10) + now
+            }, 0);
             const scale = (targetTime - fixedTotal) / templateTotal;
 
             if (0 < targetTime) {
                 for (const k of Object.keys(json)) {
-                    const itemConfig = optionConfig.items[k-1];
+                    const itemConfig = optionConfig.items[k - 1];
                     if (itemConfig && itemConfig.fixedTime) {
                         continue;
                     }
@@ -169,20 +177,20 @@ function manHourTemplateEdit(window, $) {
 
     const templates = $("#search-result tr");
     templates.each((idx, tr) => {
-            tr = $(tr);
-            if (idx === 0) {
-                tr.append($("<th>").text("デフォルトに設定しない"));
-            } else if (idx === templates.length - 1) {
-                tr.append($("<td>").text("--"));
-            } else {
-                const templateID = tr.data("template_id");
-                const config = storage.get(templateID);
-                const cb = $(noDefaultUpdateCheckBox);
-                if (config.noDefaultUpdate) {
-                    cb.prop("checked", true);
-                }
-                tr.append($("<td>").append(cb));
+        tr = $(tr);
+        if (idx === 0) {
+            tr.append($("<th>").text("デフォルトに設定しない"));
+        } else if (idx === templates.length - 1) {
+            tr.append($("<td>").text("--"));
+        } else {
+            const templateID = tr.data("template_id");
+            const config = storage.get(templateID);
+            const cb = $(noDefaultUpdateCheckBox);
+            if (config.noDefaultUpdate) {
+                cb.prop("checked", true);
             }
+            tr.append($("<td>").append(cb));
+        }
     });
 
     // デフォルトに設定しないの状態を保存
@@ -212,9 +220,9 @@ function manHourTemplateEdit(window, $) {
                 tr.append($("<td>").text("--"));
             } else {
                 const cb1 = $(fixedTimeCheckBox);
-                const itemConfig = config.items[idx-2];
+                const itemConfig = config.items[idx - 2];
                 if (itemConfig) {
-                    if (itemConfig.fixedTime){
+                    if (itemConfig.fixedTime) {
                         cb1.prop('checked', true);
                     }
                 }
@@ -245,7 +253,7 @@ function manHourTemplateEdit(window, $) {
     };
 }
 
-(function(window, $) {
+(function (window, $) {
     'use strict';
     var url = window.location.href;
 
