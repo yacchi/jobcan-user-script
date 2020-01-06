@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         工数入力サポート
 // @namespace    https://userscripts.ai2-jp.com/
-// @version      0.2
+// @version      0.3
 // @description  ジョブカン勤怠管理の工数管理画面で、簡単入力の時間を比率とした実働時間を均等配分や選択値の記憶をします
 // @author       Yasunori Fujie
 // @match        https://ssl.jobcan.jp/employee/man-hour-manage
@@ -151,6 +151,25 @@ function manHourManagePage(window, $) {
             return ret;
         };
     }
+
+    {
+        //　実働時間と工数に差異がある行を分かりやすくする
+        $("table.man-hour-table tr").each((_, e) => {
+            const cols = $(e).find("td");
+            if (cols.length < 1) {
+                return;
+            }
+            const v1 = cols[1].innerText.trim(), v2 = cols[2].innerText.trim();
+            if (v1 === v2) {
+                return;
+            }
+            if (v1 === "00:00" && v2 === "入力がありません") {
+                return;
+            }
+            $(e).css("background-color", "rgba(255, 0, 0, 0.3)");
+        });
+    }
+
     {
         //　テンプレートの時間と稼働時間に合わせ時間を配分する
         const original = window.setTemplate;
