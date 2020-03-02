@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         工数入力サポート
 // @namespace    https://userscripts.ai2-jp.com/
-// @version      0.3
+// @version      0.4
 // @description  ジョブカン勤怠管理の工数管理画面で、簡単入力の時間を比率とした実働時間を均等配分や選択値の記憶をします
 // @author       Yasunori Fujie
 // @match        https://ssl.jobcan.jp/employee/man-hour-manage
@@ -178,27 +178,41 @@ function manHourManagePage(window, $) {
             const currentTemplateID = templateID();
             const optionConfig = storage.get(currentTemplateID);
 
-            const fixedTimeFilter = (k) => {
+            const isFixedTime = (k) => {
                 const itemConf = optionConfig.items[k - 1];
-                return !itemConf || !itemConf.fixedTime;
+                return itemConf && itemConf.fixedTime;
             };
 
-            const templateTotal = Object.keys(json).filter(fixedTimeFilter).map(k => json[k]).reduce((now, v) => {
-                return parseInt(v.minutes, 10) + now
-            }, 0);
-            const fixedTotal = Object.keys(json).filter(k => !fixedTimeFilter(k)).map(k => json[k]).reduce((now, v) => {
-                return parseInt(v.minutes, 10) + now
-            }, 0);
+            const totalTimeReducer = (now, v) => {
+                return parseInt(v.minutes, 10) + now;
+            };
+
+            const templateTotal = Object.keys(json).filter(k => !isFixedTime(k)).map(k => json[k]).reduce(totalTimeReducer, 0);
+            const fixedTotal = Object.keys(json).filter(isFixedTime).map(k => json[k]).reduce(totalTimeReducer, 0);
             const scale = (targetTime - fixedTotal) / templateTotal;
+
+            // 合計時間の差分を計算して調整
+            const scaledTotal = Object.keys(json).map(k => {
+                const v = json[k];
+                return isFixedTime(k) ? v.minutes : Math.round(v.minutes * scale)
+            }).reduce((now, m) => now + m, 0);
+
+            const targetTotal = targetTime + fixedTotal;
+            const diff = targetTotal - scaledTotal;
+            const diffArray = Array(Math.abs(diff)).fill(diff / Math.abs(diff));
+
+            console.log(targetTime, fixedTotal, templateTotal, diffArray);
 
             if (0 < targetTime) {
                 for (const k of Object.keys(json)) {
-                    const itemConfig = optionConfig.items[k - 1];
-                    if (itemConfig && itemConfig.fixedTime) {
+                    if (isFixedTime(k)) {
                         continue;
                     }
                     const v = json[k];
-                    const minutes = v.minutes = Math.round(v.minutes * scale);
+                    let minutes = v.minutes = Math.round(v.minutes * scale);
+                    if (diffArray.length) {
+                        minutes += diffArray.pop();
+                    }
                     const h = Math.floor(minutes / 60);
                     const m = minutes % 60;
                     v.time = h.toString() + ":" + ("0" + m).slice(-2)
