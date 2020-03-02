@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         工数入力サポート
 // @namespace    https://userscripts.ai2-jp.com/
-// @version      0.4
+// @version      0.5
 // @description  ジョブカン勤怠管理の工数管理画面で、簡単入力の時間を比率とした実働時間を均等配分や選択値の記憶をします
 // @author       Yasunori Fujie
 // @match        https://ssl.jobcan.jp/employee/man-hour-manage
@@ -193,15 +193,15 @@ function manHourManagePage(window, $) {
 
             // 合計時間の差分を計算して調整
             const scaledTotal = Object.keys(json).map(k => {
-                const v = json[k];
-                return isFixedTime(k) ? v.minutes : Math.round(v.minutes * scale)
+                const v = json[k], m = parseInt(v.minutes, 10);
+                return isFixedTime(k) ? m : Math.round(m * scale)
             }).reduce((now, m) => now + m, 0);
 
-            const targetTotal = targetTime + fixedTotal;
-            const diff = targetTotal - scaledTotal;
-            const diffArray = Array(Math.abs(diff)).fill(diff / Math.abs(diff));
+            // 実働時間と配分後の合計時間から差分を計算
+            const diff = targetTime - scaledTotal;
 
-            console.log(targetTime, fixedTotal, templateTotal, diffArray);
+            // 差分を分配するための配列を作成
+            const diffArray = Array(Math.abs(diff)).fill(diff / Math.abs(diff));
 
             if (0 < targetTime) {
                 for (const k of Object.keys(json)) {
