@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         工数入力サポート
 // @namespace    https://userscripts.ai2-jp.com/
-// @version      0.5
+// @version      0.6
 // @description  ジョブカン勤怠管理の工数管理画面で、簡単入力の時間を比率とした実働時間を均等配分や選択値の記憶をします
 // @author       Yasunori Fujie
 // @match        https://ssl.jobcan.jp/employee/man-hour-manage
