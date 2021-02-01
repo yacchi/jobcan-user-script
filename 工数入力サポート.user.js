@@ -148,6 +148,13 @@ function manHourManagePage(window, $) {
                 }, 30);
             });
 
+            // プロジェクト更新時に、タスクの先頭が選択された状態にする
+            $(".man-hour-table-edit select[name='projects[]'").on("change", (event) => {
+                const tr = $(event.target).closest("tr")
+                const taskSelector = tr.find("select[name='tasks[]'")
+                taskSelector.val(taskSelector.find("option")[1].value)
+            })
+
             return ret;
         };
     }
