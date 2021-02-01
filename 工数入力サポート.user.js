@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         工数入力サポート
 // @namespace    https://userscripts.ai2-jp.com/
-// @version      0.6
+// @version      0.7
 // @description  ジョブカン勤怠管理の工数管理画面で、簡単入力の時間を比率とした実働時間を均等配分や選択値の記憶をします
 // @author       Yasunori Fujie
 // @match        https://ssl.jobcan.jp/employee/man-hour-manage
@@ -149,7 +149,7 @@ function manHourManagePage(window, $) {
             });
 
             // プロジェクト更新時に、タスクの先頭が選択された状態にする
-            $(".man-hour-table-edit select[name='projects[]'").on("change", (event) => {
+            $(".man-hour-table-edit").on("change", "select[name='projects[]']", (event) => {
                 const tr = $(event.target).closest("tr")
                 const taskSelector = tr.find("select[name='tasks[]'")
                 taskSelector.val(taskSelector.find("option")[1].value)
