@@ -140,7 +140,7 @@ function manHourManagePage(window, $) {
                 let timerID;
                 timerID = setInterval(() => {
                     const state = frame.contents()[0].readyState;
-                    if (state != "complete") {
+                    if (state !== "complete") {
                         frame.remove();
                         location.reload();
                         clearInterval(timerID);
@@ -152,9 +152,9 @@ function manHourManagePage(window, $) {
         };
     }
 
-    {
+    if ($("#man-hour-manage-modal").length === 1){
         //　実働時間と工数に差異がある行を分かりやすくする
-        $("table.man-hour-table tr").each((_, e) => {
+        $("table.jbc-table tr").each((_, e) => {
             const cols = $(e).find("td");
             if (cols.length < 1) {
                 return;
@@ -299,7 +299,8 @@ function manHourTemplateEdit(window, $) {
 
     window.displayManHourData = (json) => {
         original(json);
-        const targetTable = $("table.man-hour-table-edit tr");
+        const tableHeader = $("#man-hour-manage-modal thead tr")
+        const targetTable = $("#man-hour-manage-modal tbody.man-hour-table-edit tr");
         const templateID = $("#edit-menu input[name='template_id']").val();
         const config = storage.get(templateID);
 
@@ -307,15 +308,14 @@ function manHourTemplateEdit(window, $) {
         $("tr#original").append($("<td>").append($(fixedTimeCheckBox)));
 
         // テンプレートに固定時間の設定項目を追加する
+        tableHeader.append($("<th>").text("固定時間"))
         targetTable.each((idx, tr) => {
             tr = $(tr);
             if (idx === 0) {
-                tr.append($("<th>").text("固定時間"));
-            } else if (idx === 1) {
                 tr.append($("<td>").text("--"));
             } else {
                 const cb1 = $(fixedTimeCheckBox);
-                const itemConfig = config.items[idx - 2];
+                const itemConfig = config.items[idx - 1];
                 if (itemConfig) {
                     if (itemConfig.fixedTime) {
                         cb1.prop('checked', true);
@@ -345,7 +345,7 @@ function manHourTemplateEdit(window, $) {
             return true;
         });
 
-        window.resizeElms();
+        // window.resizeElms();
     };
 }
 
