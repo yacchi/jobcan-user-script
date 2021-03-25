@@ -1,55 +1,125 @@
 // ==UserScript==
-// @name         工数入力サポート
-// @namespace    https://userscripts.ai2-jp.com/
-// @version      0.7
+// @name         ジョブカン入力サポート
+// @namespace    https://github.com/yacchi/jobcan-user-script
+// @version      1.0.0
 // @description  ジョブカン勤怠管理の工数管理画面で、簡単入力の時間を比率とした実働時間を均等配分や選択値の記憶をします
-// @author       Yasunori Fujie
+// @author       yacchi
 // @match        https://ssl.jobcan.jp/employee/man-hour-manage
 // @match        https://ssl.jobcan.jp/employee/man-hour-template/list
-// @grant         none
+// @grant        GM_getValue
+// @grant        GM_setValue
 // ==/UserScript==
 
-class TemplateOptionStorage {
-    getKey(templateID) {
-        return "com.ai2-jp.userscript.jobcan.man-hour-template-edit.optionConfig[" + templateID + "]"
-    }
-
-    exist(templateID) {
-        const config = window.localStorage.getItem(this.getKey(templateID));
-        return config != null;
-    }
-
-    get(templateID) {
-        const config = window.localStorage.getItem(this.getKey(templateID));
-        if (config) {
-            try {
-                return JSON.parse(config);
-            } catch (e) {
+function migrateConfig(domain) {
+    function convert(parent, key, val) {
+        const pos = key.indexOf(".")
+        let subKey = ""
+        if (0 < pos) {
+            subKey = key.slice(pos + 1)
+            key = key.slice(0, pos)
+        } else {
+            const m = key.match(/(\w+)\[(\w+)]/)
+            if (m) {
+                key = m[1]
+                subKey = m[2]
             }
         }
-        return {
-            items: [],
-        };
-    }
-
-    set(templateID, config) {
-        window.localStorage.setItem(this.getKey(templateID), JSON.stringify(config));
-    }
-
-    replaceLatest(templateID) {
-        const config = this.get("0");
-        if (!this.exist(templateID)) {
-            this.set(templateID, config);
+        if (subKey) {
+            if (!parent[key]) {
+                parent[key] = {}
+            }
+            convert(parent[key], subKey, val)
+        } else {
+            parent[key] = val
         }
-        window.localStorage.removeItem(this.getKey("0"));
+    }
+
+    const prefix = domain.split(".").reverse().join(".") + ".userscript.jobcan."
+    const deletes = []
+    const conf = Object.keys(localStorage).filter(k => 0 === k.indexOf(prefix)).reduce((root, k) => {
+        const key = k.replace(prefix, "")
+        convert(root, key, JSON.parse(localStorage.getItem(k)))
+        deletes.push(k)
+        return root
+    }, {})
+    if (Object.keys(conf).length) {
+        GM_setValue(domain, conf)
+        deletes.forEach(k => localStorage.removeItem(k))
     }
 }
 
-function manHourManagePage(window, $) {
+const TemplateEditPage = "man-hour-template-edit"
+const EditPage = "man-hour-manage"
+
+class ConfigStorage {
+    constructor(domain) {
+        this.domain = domain
+        this.conf = GM_getValue(domain, {})
+
+        if (!this.conf[TemplateEditPage]) {
+            this.conf[TemplateEditPage] = {}
+        }
+        if (!this.conf[TemplateEditPage]["optionConfig"]) {
+            this.conf[TemplateEditPage].optionConfig = {}
+        }
+        this.templateConfigs = this.conf[TemplateEditPage].optionConfig
+
+        if (!this.conf[EditPage]) {
+            this.conf[EditPage] = {}
+        }
+        this.editPageAttrs = this.conf[EditPage]
+    }
+
+
+    update() {
+        GM_setValue(this.domain, this.conf)
+    }
+
+    existTemplateConfig(templateID) {
+        return templateID in this.templateConfigs
+    }
+
+    getTemplateConfig(templateID) {
+        return this.templateConfigs[templateID] || {
+            items: [],
+            noDefaultUpdate: false,
+        }
+    }
+
+    setTemplateConfig(templateID, config) {
+        this.templateConfigs[templateID] = config
+        this.update()
+    }
+
+    removeTemplateConfig(templateID) {
+        delete this.templateConfigs[templateID]
+        this.update()
+    }
+
+    updateLastInsertedTemplateID(templateID) {
+        const config = this.getTemplateConfig("0");
+        if (!this.existTemplateConfig(templateID)) {
+            this.templateConfigs[templateID] = config
+            delete this.templateConfigs["0"]
+            this.update()
+        }
+    }
+
+    getLastTemplateID() {
+        return this.editPageAttrs["last-template_id"]
+    }
+
+    updateLastSelectedTemplateID(templateID) {
+        this.editPageAttrs["last-template_id"] = templateID
+        this.update()
+    }
+}
+
+function manHourManagePage(window, $, domain) {
     'use strict';
 
     let targetTime = 0;
-    const manHourManageCurrentPageKey = "com.ai2-jp.userscript.jobcan.man-hour-template-edit.currentPage";
+    const manHourManageCurrentPageKey = "userscript.jobcan.man-hour-manage.currentPage";
 
     {
         const currentDate = () => {
@@ -63,11 +133,11 @@ function manHourManagePage(window, $) {
 
         const updateCurrentPage = () => {
             const current = currentDate();
-            window.localStorage.setItem(manHourManageCurrentPageKey, JSON.stringify(current));
+            window.sessionStorage.setItem(manHourManageCurrentPageKey, JSON.stringify(current));
         };
 
         const getSavedCurrentPage = () => {
-            const s = window.localStorage.getItem(manHourManageCurrentPageKey);
+            const s = window.sessionStorage.getItem(manHourManageCurrentPageKey);
             if (s != null) {
                 return JSON.parse(s);
             }
@@ -93,11 +163,10 @@ function manHourManagePage(window, $) {
         }
     }
 
-    const lastTemplateKey = "com.ai2-jp.userscript.jobcan.man-hour-manage.last-template_id";
     const templateSelector = "#select-template select";
     const contentsSelector = "#edit-menu-contents tr.daily";
     const saveFrameName = "save-frame"
-    const storage = new TemplateOptionStorage();
+    const storage = new ConfigStorage(domain);
 
     const templateID = (newID) => {
         const elem = $('#select-template select');
@@ -124,7 +193,7 @@ function manHourManagePage(window, $) {
             targetTime = parseInt($("#edit-menu #hiddenTime").val(), 10);
 
             if ($(contentsSelector).length < 1) {
-                const lastTemplate = localStorage.getItem(lastTemplateKey);
+                const lastTemplate = storage.getLastTemplateID();
                 if (lastTemplate) {
                     if ($(templateSelector + " option[value=" + lastTemplate + "]").length !== 0) {
                         templateID(lastTemplate);
@@ -159,7 +228,7 @@ function manHourManagePage(window, $) {
         };
     }
 
-    if ($("#man-hour-manage-modal").length === 1){
+    if ($("#man-hour-manage-modal").length === 1) {
         //　実働時間と工数に差異がある行を分かりやすくする
         $("table.jbc-table tr").each((_, e) => {
             const cols = $(e).find("td");
@@ -183,7 +252,7 @@ function manHourManagePage(window, $) {
 
         window.setTemplate = (json) => {
             const currentTemplateID = templateID();
-            const optionConfig = storage.get(currentTemplateID);
+            const optionConfig = storage.getTemplateConfig(currentTemplateID);
 
             const isFixedTime = (k) => {
                 const itemConf = optionConfig.items[k - 1];
@@ -228,7 +297,7 @@ function manHourManagePage(window, $) {
 
             // デフォルトを更新
             if (!optionConfig.noDefaultUpdate) {
-                localStorage.setItem(lastTemplateKey, currentTemplateID);
+                storage.updateLastSelectedTemplateID(currentTemplateID)
             }
 
             return original(json);
@@ -252,14 +321,13 @@ function manHourManagePage(window, $) {
             } else {
                 target.value = v.substring(0, 2) + ":" + v.substring(2);
             }
-            console.log(target.value);
         }
     });
 }
 
-function manHourTemplateEdit(window, $) {
+function manHourTemplateEdit(window, $, domain) {
     const original = window.displayManHourData;
-    const storage = new TemplateOptionStorage();
+    const storage = new ConfigStorage(domain);
     const fixedTimeCheckBox = "<input class='fixed-time' type='checkbox'>";
     const noDefaultUpdateCheckBox = "<input class='no-default-update' type='checkbox' onclick='setNoDefaultUpdate(this)'>";
 
@@ -272,9 +340,9 @@ function manHourTemplateEdit(window, $) {
         }
     });
 
-    if (0 < storage.get("0").items) {
+    if (0 < storage.getTemplateConfig("0").items) {
         // 最後に保存したテンプレートを正しいIDへアサイン(post時にIDが決定されるため)
-        storage.replaceLatest(latest);
+        storage.updateLastInsertedTemplateID(latest);
     }
 
     const templates = $("#search-result tr");
@@ -293,7 +361,7 @@ function manHourTemplateEdit(window, $) {
                     tr.data("template_id", templateID)
                 }
             }
-            const config = storage.get(templateID);
+            const config = storage.getTemplateConfig(templateID);
             const cb = $(noDefaultUpdateCheckBox);
             if (config.noDefaultUpdate) {
                 cb.prop("checked", true);
@@ -306,9 +374,9 @@ function manHourTemplateEdit(window, $) {
     window.setNoDefaultUpdate = (elem) => {
         const checked = elem.checked;
         const templateID = $(elem).closest("tr").data("template_id");
-        const config = storage.get(templateID);
+        const config = storage.getTemplateConfig(templateID);
         config.noDefaultUpdate = checked;
-        storage.set(templateID, config);
+        storage.setTemplateConfig(templateID, config);
     };
 
     window.displayManHourData = (json) => {
@@ -316,7 +384,7 @@ function manHourTemplateEdit(window, $) {
         const tableHeader = $("#man-hour-manage-modal thead tr")
         const targetTable = $("#man-hour-manage-modal tbody.man-hour-table-edit tr");
         const templateID = $("#edit-menu input[name='template_id']").val();
-        const config = storage.get(templateID);
+        const config = storage.getTemplateConfig(templateID);
 
         // 追加時用のテンプレートに設定項目を追加する
         $("tr#original").append($("<td>").append($(fixedTimeCheckBox)));
@@ -354,7 +422,7 @@ function manHourTemplateEdit(window, $) {
             });
 
             config.items = items;
-            storage.set(templateID, config);
+            storage.setTemplateConfig(templateID, config);
 
             return true;
         });
@@ -367,9 +435,16 @@ function manHourTemplateEdit(window, $) {
     'use strict';
     const url = window.location.href;
 
-    if (url.indexOf("https://ssl.jobcan.jp/employee/man-hour-manage") === 0) {
-        manHourManagePage(window, $);
-    } else if (url.indexOf("https://ssl.jobcan.jp/employee/man-hour-template/list") === 0) {
-        manHourTemplateEdit(window, $);
+    const mail = $("#jbcid-dropdown-button").text()
+    const domain = mail.slice(mail.indexOf("@") + 1)
+
+    if (domain) {
+        migrateConfig(domain)
+
+        if (url.indexOf("https://ssl.jobcan.jp/employee/man-hour-manage") === 0) {
+            manHourManagePage(window, $, domain);
+        } else if (url.indexOf("https://ssl.jobcan.jp/employee/man-hour-template/list") === 0) {
+            manHourTemplateEdit(window, $, domain);
+        }
     }
-})(window, $);
+})(window.unsafeWindow, $);
