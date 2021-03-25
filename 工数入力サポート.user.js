@@ -51,47 +51,47 @@ function manHourManagePage(window, $) {
     let targetTime = 0;
     const manHourManageCurrentPageKey = "com.ai2-jp.userscript.jobcan.man-hour-template-edit.currentPage";
 
-    // {
-    //     const currentDate = () => {
-    //         const year = $("[name=year]").val();
-    //         const month = $("[name=month]").val();
-    //         return {
-    //             year: year,
-    //             month: month,
-    //         }
-    //     }
-    //
-    //     const updateCurrentPage = () => {
-    //         const current = currentDate();
-    //         window.localStorage.setItem(manHourManageCurrentPageKey, JSON.stringify(current));
-    //     };
-    //
-    //     const getSavedCurrentPage = () => {
-    //         const s = window.localStorage.getItem(manHourManageCurrentPageKey);
-    //         if (s != null) {
-    //             return JSON.parse(s);
-    //         }
-    //     }
-    //
-    //     // 表示月度の保存
-    //     const searchElem = document.getElementById("search");
-    //     const orig = searchElem.submit;
-    //     searchElem.submit = () => {
-    //         updateCurrentPage();
-    //         return orig.call(searchElem);
-    //     };
-    //
-    //     // 表示月度の調整
-    //     const current = getSavedCurrentPage();
-    //     if (current != null) {
-    //         const now = currentDate();
-    //         if (now.year != current.year || now.month != current.month) {
-    //             $(searchElem).find("[name=year]").val(current.year);
-    //             $(searchElem).find("[name=month]").val(current.month);
-    //             $(searchElem).submit();
-    //         }
-    //     }
-    // }
+    {
+        const currentDate = () => {
+            const year = $("[name=year]").val();
+            const month = $("[name=month]").val();
+            return {
+                year: year,
+                month: month,
+            }
+        }
+
+        const updateCurrentPage = () => {
+            const current = currentDate();
+            window.localStorage.setItem(manHourManageCurrentPageKey, JSON.stringify(current));
+        };
+
+        const getSavedCurrentPage = () => {
+            const s = window.localStorage.getItem(manHourManageCurrentPageKey);
+            if (s != null) {
+                return JSON.parse(s);
+            }
+        }
+
+        // 表示月度の保存
+        const searchElem = document.getElementById("search");
+        const orig = searchElem.submit;
+        searchElem.submit = () => {
+            updateCurrentPage();
+            return orig.call(searchElem);
+        };
+
+        // 表示月度の調整
+        const current = getSavedCurrentPage();
+        if (current != null) {
+            const now = currentDate();
+            if (now.year !== current.year || now.month !== current.month) {
+                $(searchElem).find("[name=year]").val(current.year);
+                $(searchElem).find("[name=month]").val(current.month);
+                $(searchElem).submit();
+            }
+        }
+    }
 
     const lastTemplateKey = "com.ai2-jp.userscript.jobcan.man-hour-manage.last-template_id";
     const templateSelector = "#select-template select";
@@ -285,7 +285,14 @@ function manHourTemplateEdit(window, $) {
         } else if (idx === templates.length - 1) {
             tr.append($("<td>").text("--"));
         } else {
-            const templateID = tr.data("template_id");
+            let templateID = tr.data("template_id");
+            if (!templateID) {
+                const m = tr.find("td button")[0].onclick.toString().match(/\((\d+)\)/)
+                if (m) {
+                    templateID = m[1]
+                    tr.data("template_id", templateID)
+                }
+            }
             const config = storage.get(templateID);
             const cb = $(noDefaultUpdateCheckBox);
             if (config.noDefaultUpdate) {
@@ -338,7 +345,7 @@ function manHourTemplateEdit(window, $) {
 
             targetTable.each((idx, tr) => {
                 tr = $(tr);
-                if (1 < idx) {
+                if (0 < idx) {
                     const fixedTime = tr.find("input.fixed-time").is(':checked');
                     items.push({
                         fixedTime: fixedTime,
